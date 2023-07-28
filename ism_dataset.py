@@ -154,7 +154,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--n_rir', default = 200000, type=int,
         help = 'Number of RIRs to be simulated')
-    parser.add_argument('--sr', default = 44100, 
+    parser.add_argument('--sr', default = 44100, type=int,
         help='Sampling rate')
     parser.add_argument('--split',  nargs='+', type=float,
         help='room size contribution in parts - samll, medium, large')
