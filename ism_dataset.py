@@ -143,10 +143,6 @@ def main(args):
             config['filename'] = os.path.join(args.dir_path, str(uuid.uuid4()) + '.wav')
             sf.write(config['filename'], rir/np.max(np.abs(rir)), shoebox.fs)
             writer.writerow(config)
-    
-    plt.legend()
-    plt.show()
-
 
 if __name__ == '__main__':
     
