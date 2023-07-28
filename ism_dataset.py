@@ -54,9 +54,9 @@ def sample_room_materials():
     return materials, [s, a1, a2, a3]
 
 def sample_room_interior(room_dim):
-    x = np.random.uniform(0, room_dim[0])
-    y = np.random.uniform(0, room_dim[1])
-    z = np.random.uniform(0, room_dim[2])
+    x = np.random.uniform(0.01, room_dim[0]-0.01)
+    y = np.random.uniform(0.01, room_dim[1]-0.01)
+    z = np.random.uniform(0.01, room_dim[2]-0.01)
     coord = [x, y, z]
     return np.round(np.multiply(coord,1000))/1000
 
