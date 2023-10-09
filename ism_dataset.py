@@ -78,14 +78,34 @@ ceiling_mat = {
 }
 }
 
+# general scattering
+scattering = {
+    "diffuser_ceil": {
+    "description": "random diffuser",
+    "coeffs": [0.01, 0.01, 0.01, 0.01, 0.01],
+    "center_freqs": [125, 250, 500, 1000, 2000],
+},
+    "diffuser_wall": {
+    "description": "random diffuser",
+    "coeffs": [0.01, 0.08, 0.15, 0.25, 0.5],
+    "center_freqs": [125, 250, 500, 1000, 2000],
+},
+    "diffuser_floor": {
+    "description": "random diffuser",
+    "coeffs": [0.01, 0.10, 0.15, 0.25, 0.5],
+    "center_freqs": [125, 250, 500, 1000, 2000],
+}   
+}
+
 # room dimension
 room_dim_opt = {
-    "small": {"length": [2, 7],"width": [1.5, 5], "height": [2.4, 3]},
+    "small": {"length": [1.5, 7],"width": [1.5, 5], "height": [2, 3]},
     "medium": {"length": [7, 15],"width": [5, 10], "height": [3, 5]},
     "large": {"length": [15, 25],"width": [10, 20], "height": [5, 10]}
 }
 
-# Create the shoebox
+
+'''
 # material: (absorption, scattering)
 materials_mu = {
     'ceiling':(0.25, 0.01),
@@ -95,6 +115,7 @@ materials_mu = {
     'north':(0.15, 0.15),
     'south':(0.10, 0.15),
 }
+'''
 
 def sample_room_dim(dim_limits):
     room_l = np.random.uniform(dim_limits['length'][0], dim_limits['length'][1])
@@ -105,9 +126,9 @@ def sample_room_dim(dim_limits):
 
 def sample_room_materials():
     s = np.random.uniform(0.0, 0.2)
-    a1 = np.random.uniform(0.0, 1)
-    a2 = np.random.uniform(0.0, 1)
-    a3 = np.random.uniform(0.0, 1)
+    a1 = np.random.uniform(0.0, 0.5)
+    a2 = np.random.uniform(0.0, 0.5)
+    a3 = np.random.uniform(0.0, 0.5)
 
     materials = pra.make_materials(
         ceiling=(a1, s),
@@ -135,12 +156,25 @@ def sample_materials_from_dict():
         north=wall_mat[wm],
         south=wall_mat[wm],
     )    
+    '''
+    materials = pra.make_materials(
+        ceiling=(ceiling_mat[cm], scattering['diffuser_ceil']),
+        floor=(floor_mat[fm], scattering['diffuser_ceil']),
+        east=(wall_mat[wm], scattering['diffuser_ceil']),
+        west=(wall_mat[wm], scattering['diffuser_ceil']),
+        north=(wall_mat[wm], scattering['diffuser_ceil']),
+        south=(wall_mat[wm], scattering['diffuser_ceil']),
+    )    
+    '''
     return materials, [cm, fm, wm]
     
 def sample_room_interior(room_dim):
-    x = np.random.uniform(0.01, room_dim[0]-0.01)
-    y = np.random.uniform(0.01, room_dim[1]-0.01)
-    z = np.random.uniform(0.01, room_dim[2]-0.01)
+    '''
+    sample coordinates of a point inside the room
+    '''
+    x = np.random.uniform(0.25, room_dim[0]-0.25)
+    y = np.random.uniform(0.25, room_dim[1]-0.25)
+    z = np.random.uniform(0.25, room_dim[2]-0.25)
     coord = [x, y, z]
     return np.round(np.multiply(coord,1000))/1000
 
@@ -159,6 +193,7 @@ def make_room(config):
             max_order=config["max_order"],
             ray_tracing=config["ray_tracing"],
             air_absorption=True,
+            use_rand_ism = True,
         )
         .add_source(config['source'])   
         .add_microphone(config['mic'])
@@ -180,7 +215,7 @@ def chrono(f, *args, **kwargs):
 def main(args):
     
     config = {}
-    config['max_order'] = 17
+    config['max_order'] = 100
     config['ray_tracing'] = True
     config['sr'] = args.sr
     
@@ -189,6 +224,8 @@ def main(args):
         np.divide(args.split, sum(args.split)) * args.n_rir))
 
     # open metadata file 
+    if not os.path.exists(args.dir_path):
+        os.makedirs(args.dir_path)
     filepath = os.path.join(args.dir_path, 'metadata.csv')
     fieldnames = ['filename', 'size', 'room_dim', 'material_ceil', 'material_floor', 'material_wall', 'source', 'mic', 'rt60', 'max_order', 'ray_tracing', 'sr']
     with open(filepath, 'w', newline='') as csvfile:
