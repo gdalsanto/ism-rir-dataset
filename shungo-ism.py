@@ -182,7 +182,7 @@ def main(args):
             config['room_dim'] = room.shoebox_dim.tolist()
             config['volume'] = room.volume
             config['max_order'] = room.max_order
-            config['rt60'] = room.measure_rt60
+            config['rt60'] = room.measure_rt60().item()
 
             config['filename'] = os.path.join(args.dir_path, str(uuid.uuid4()) + '.wav')
             # write rir
