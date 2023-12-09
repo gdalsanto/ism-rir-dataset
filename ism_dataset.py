@@ -99,9 +99,9 @@ scattering = {
 
 # room dimension
 room_dim_opt = {
-    "small": {"length": [1.5, 7],"width": [1.5, 5], "height": [2, 3]},
-    "medium": {"length": [7, 15],"width": [5, 10], "height": [3, 5]},
-    "large": {"length": [15, 25],"width": [10, 20], "height": [5, 10]}
+    "small": {  "length": [1.5, 7], "width": [1.5, 5],  "height": [2, 3]},
+    "medium": { "length": [5, 10],  "width": [3, 8],    "height": [2, 5]},
+    "large": {  "length": [7, 15],  "width": [5, 12],   "height": [3, 7]}
 }
 
 
@@ -140,6 +140,14 @@ def sample_room_materials():
     )  
     return materials, [s, a1, a2, a3]
 
+def add_noise_materials(material, p_coeff=np.array(0.1), p_freq=np.array(0.1)):
+
+    coeff = np.array(material['coeffs'])
+    material['coeffs'] = (coeff + np.random.uniform(coeff*(-p_coeff), coeff*(p_coeff))).tolist()
+    freq = np.array(material['center_freqs'])
+    material['center_freqs'] = (freq + np.random.uniform(freq*(-p_freq), freq*(p_freq))).tolist()
+    return material 
+
 def sample_materials_from_dict():
     wall_n = np.random.randint(0, len(wall_mat.keys()))
     floor_n = np.random.randint(0, len(floor_mat.keys()))
@@ -148,13 +156,21 @@ def sample_materials_from_dict():
     cm = list(ceiling_mat.keys())[ceiling_n]
     fm = list(floor_mat.keys())[floor_n]
     wm = list(wall_mat.keys())[wall_n]
+
+    # add noise 
+    ceiling = add_noise_materials(  ceiling_mat[cm], 
+                                    p_freq = np.logspace(np.log10(0.05), np.log10(0.25), len(ceiling_mat[cm]['center_freqs'])))
+    floor = add_noise_materials(floor_mat[fm], 
+                                p_freq = np.logspace(np.log10(0.05), np.log10(0.25), len(floor_mat[fm]['center_freqs'])))
+    wall = add_noise_materials( wall_mat[wm], 
+                                p_freq = np.logspace(np.log10(0.05), np.log10(0.25), len(wall_mat[wm]['center_freqs'])))
     materials = pra.make_materials(
-        ceiling=ceiling_mat[cm],
-        floor=floor_mat[fm],
-        east=wall_mat[wm],
-        west=wall_mat[wm],
-        north=wall_mat[wm],
-        south=wall_mat[wm],
+        ceiling=ceiling,
+        floor=floor,
+        east=wall,
+        west=wall,
+        north=wall,
+        south=wall,
     )    
     '''
     materials = pra.make_materials(
@@ -215,8 +231,8 @@ def chrono(f, *args, **kwargs):
 def main(args):
     
     config = {}
-    config['max_order'] = 100
-    config['ray_tracing'] = True
+    config['max_order'] = args.max_order
+    config['ray_tracing'] = args.ray_tracing
     config['sr'] = args.sr
     
     # get room sizes splits 
@@ -257,6 +273,24 @@ def main(args):
             shoebox.compute_rir()
             rir = shoebox.rir[0][0].copy()
             config['rt60'] = shoebox.measure_rt60(decay_db=60)
+
+            while config['rt60'] >= args.max_rt60:
+                # repeat the above untill you get a rt60 within the acceptable range
+                config['room_dim'] = sample_room_dim(room_dim_opt[room_type])
+                config['materials'], materials = sample_materials_from_dict()
+                config['source'] = sample_room_interior(config['room_dim'])
+                config['mic'] = sample_room_interior(config['room_dim'])
+                
+                shoebox = make_room(config)
+                # rt60_sabine = shoebox.rt60_theory(formula="sabine")
+                # rt60_eyring = shoebox.rt60_theory(formula="eyring")
+                # compute rir
+                shoebox.image_source_model()
+                shoebox.ray_tracing()
+                shoebox.compute_rir()
+                rir = shoebox.rir[0][0].copy()
+                config['rt60'] = shoebox.measure_rt60(decay_db=60)           
+
             config['material_ceil'] = materials[0] 
             config['material_floor'] = materials[1]
             config['material_wall'] = materials[2]
@@ -273,15 +307,20 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--n_rir', default = 200000, type=int,
+    parser.add_argument('--n_rir', default = 100, type=int,
         help = 'Number of RIRs to be simulated')
     parser.add_argument('--sr', default = 48000, type=int,
         help='Sampling rate')
     parser.add_argument('--split',  nargs='+', type=float,
         help='room size contribution in parts - samll, medium, large')
     parser.add_argument('--dir_path', 
-    help='path to directory where to save the dataset')
-
+        help='path to directory where to save the dataset')
+    parser.add_argument('--max_rt60', type=float,
+        help='Max accepted rt60 value')
+    parser.add_argument('--ray_tracing', action='store_true', 
+        help='If true hybrid ISM/ray_tracing method will be used')
+    parser.add_argument('--max_order', default=100, type=int,
+        help='Max order to use in ISM synthesis')
     args = parser.parse_args()
 
     main(args)
